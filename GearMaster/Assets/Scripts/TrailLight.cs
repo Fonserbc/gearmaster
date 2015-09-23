@@ -13,7 +13,7 @@ public class TrailLight : MonoBehaviour {
 	// Use this for initialization
 	void Start () {
 		baseIntensity = light.intensity;
-		baseStartWidth = trail.startWidth;
+		if (trail != null) baseStartWidth = trail.startWidth;
 		SetIntensity (0f);
 	}
 
@@ -21,10 +21,10 @@ public class TrailLight : MonoBehaviour {
 		float eased = Easing.Cubic.In (i);
 		light.intensity = baseIntensity * eased;
 		mesh.material.color = Color.Lerp (Color.black, Color.white, eased);
-		trail.startWidth = baseStartWidth * eased;
+		if (trail != null) trail.startWidth = baseStartWidth * eased;
 	}
 
 	public void SetTrail ( bool enabled ) {
-		trail.enabled = enabled;
+		if (trail != null) trail.enabled = enabled;
 	}
 }

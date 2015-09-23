@@ -16,6 +16,10 @@ public class CarMovement : MonoBehaviour {
 
 	public AudioSource audio;
 
+	public Transform[] wheels;
+
+	const float WHEEL_RADIUS = 0.10f;
+
 	const float ACCELERATION = 5f;
 	const float SELF_ACCELERATION = 0.5f;
 
@@ -43,37 +47,38 @@ public class CarMovement : MonoBehaviour {
 		gears [1].MAX_SPEED = 5f;
 
 		gears [2].MIN_SPEED = 4f;
-		gears [2].MAX_SPEED = 10f;
+		gears [2].MAX_SPEED = 14f;
 
-		gears [3].MIN_SPEED = 8f;
-		gears [3].MAX_SPEED = 18f;
+		gears [3].MIN_SPEED = 11f;
+		gears [3].MAX_SPEED = 20f;
 
-		gears [4].MIN_SPEED = 15f;
-		gears [4].MAX_SPEED = 30f;
+		gears [4].MIN_SPEED = 17f;
+		gears [4].MAX_SPEED = 26f;
 	}
 
 	bool wasAccelerating = false;
+	public bool accelerating = false;
 	
 	// Update is called once per frame
 	void Update () {
-		if (Input.GetKeyDown (KeyCode.W)) {
-			SetGear (Mathf.Min (4, gear + 1));
-		} else if (Input.GetKeyDown (KeyCode.S)) {
-			SetGear(Mathf.Max(0, gear - 1));
-		}
+		//if ((Input.GetKeyDown (KeyCode.W) && left) || (Input.GetKeyDown (KeyCode.UpArrow) && !left)) {
+		//	SetGear (Mathf.Min (4, gear + 1));
+		//} else if ((Input.GetKeyDown (KeyCode.S) && left) || (Input.GetKeyDown (KeyCode.DownArrow) && !left)) {
+		//	SetGear(Mathf.Max(0, gear - 1));
+		//}
 
-		bool accelerating = (left ? Input.GetKey (KeyCode.Space) : Input.GetKey (KeyCode.Return));
+		accelerating = (left ? Input.GetKey (KeyCode.Space) : Input.GetKey (KeyCode.Return));
 
 		if (accelerating) {
 			if (gear == 0) {
 				revolutions = Mathf.Min(1.5f, revolutions + 2f * Time.deltaTime);
 			}
 			else {
-				velocity += Easing.Quadratic.Out(GetVelocityGearFactor())*ACCELERATION*Time.deltaTime;
-				revolutions = Mathf.Lerp(revolutions, GetVelocityGearFactor(), Time.deltaTime*3f);
+				velocity += GetVelocityGearFactor()*ACCELERATION*Time.deltaTime;
+				revolutions = Mathf.Lerp(revolutions, GetRevolutionVelocityFactor(), Time.deltaTime*3f);
 
 				if (revolutions > 1f) {
-					velocity *= 0.93f;
+					//revolutions *= 0.93f;
 					// BSSMM down
 				}
 
@@ -90,12 +95,15 @@ public class CarMovement : MonoBehaviour {
 			}
 			else {
 				if (velocity < gears[gear].MIN_SPEED) {
-					velocity += Easing.Quadratic.Out(GetVelocityGearFactor())*SELF_ACCELERATION*Time.deltaTime;
+					velocity += GetVelocityGearFactor()*SELF_ACCELERATION*Time.deltaTime;
+				}
+				else if (velocity > gears[gear].MAX_SPEED) {
+					velocity += GetVelocityGearFactor()*ACCELERATION*Time.deltaTime;
 				}
 				else {
-					velocity *= 1f - (0.1f * Time.deltaTime);
+					velocity -= SELF_ACCELERATION*Time.deltaTime;
 				}
-				revolutions = Mathf.Lerp(revolutions, GetVelocityGearFactor(), Time.deltaTime*3f);
+				revolutions = Mathf.Lerp(revolutions, GetRevolutionVelocityFactor(), Time.deltaTime*3f);
 
 				if (revolutions < 0f) {
 					revolutions = 0f;
@@ -116,16 +124,23 @@ public class CarMovement : MonoBehaviour {
 
 
 
-		if (accelerating && gear > 0) {
+		if (accelerating) {
 			anim.SetFloat ("acc", revolutions);
 		} else {
 			anim.SetFloat ("acc", Mathf.Lerp(anim.GetFloat("acc"), 0f, Time.deltaTime));
 		}
 		transform.position += new Vector3 (0, 0, velocity * Time.deltaTime);
 		accelerationImage.fillAmount = revolutions;
-		audio.pitch = revolutions*2f + 0.5f;
+		audio.pitch = revolutions*3f + (left? 0.5f : 0.7f);
 
 		if (gear > 0) wasAccelerating = accelerating;
+
+		float angle = transform.position.z / (Mathf.PI * WHEEL_RADIUS);
+		Quaternion wheelRot = Quaternion.AngleAxis (angle * Mathf.Rad2Deg, Vector3.right);
+
+		for (int i = 0; i < wheels.Length; ++i) {
+			wheels[i].localRotation = wheelRot;
+		}
 	}
 
 	float GetVelocityGearFactor() {
@@ -133,21 +148,35 @@ public class CarMovement : MonoBehaviour {
 		if (gear == 0) {
 			return 0;
 		}
-		else if (velocity >= gears [gear].MIN_SPEED) {
+		else if (velocity >= gears [gear].MIN_SPEED && velocity < gears[gear].MAX_SPEED) {
 			float value = (velocity - gears [gear].MIN_SPEED) / (gears [gear].MAX_SPEED - gears [gear].MIN_SPEED);
 			return minAcc + (1f - minAcc) * value;
 		}
+		else if (velocity > gears[gear].MAX_SPEED) {
+			float value = -(velocity - gears[gear].MAX_SPEED)/(gears[gear].MAX_SPEED/2f);
+			return -minAcc + value;
+		}
 		else {
-			return Easing.Quadratic.In(Mathf.Min(gears[gear].MIN_SPEED, 0.5f + velocity)/gears[gear].MIN_SPEED)*minAcc;
+			if (gear == 1) {
+				return minAcc*2f;
+			}
+			else {
+				float value = Mathf.Min(gears[gear].MIN_SPEED, 0.5f + velocity)/gears[gear].MIN_SPEED;
+				return value*minAcc;
+			}
 		}
 	}
 
-	void SetGear(int which) {
+	float GetRevolutionVelocityFactor() {
+		return Mathf.Max(0f, (velocity - gears [gear].MIN_SPEED) / (gears [gear].MAX_SPEED - gears [gear].MIN_SPEED));
+	}
+
+	public void SetGear(int which) {
 		gear = which;
 		gearText.text = gear.ToString();
 		if (gear > 0 && velocity > gears [gear].MAX_SPEED) {
-			revolutions = GetVelocityGearFactor();
-			velocity = gears [gear].MAX_SPEED;
+			//revolutions = GetRevolutionVelocityFactor();
+			//velocity = gears [gear].MAX_SPEED;
 		}
 	}
 }
