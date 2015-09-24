@@ -210,7 +210,7 @@ public class Logic : MonoBehaviour {
 	}
 
 	bool gameStarted = false;
-	float animTime = 9f;
+	float animTime = 11f;
 	int cameraCount = 0;
 	int textCount = 0;
 	int soundCount;
@@ -271,7 +271,7 @@ public class Logic : MonoBehaviour {
 
 				if (animTime <= 0f) {
 					animTime = 5f;
-					Application.LoadLevel(0);
+					Application.Quit();
 				}
 			}
 		}
@@ -309,7 +309,7 @@ public class Logic : MonoBehaviour {
 					rightWinCanvas.SetActive(true);
 				}
 				playing = false;
-				animTime = 7f;
+				animTime = 10f;
 				mainCamera.enabled = true;
 				mainCameraQuad.SetActive(true);
 				mainCanvas.SetActive(false);
